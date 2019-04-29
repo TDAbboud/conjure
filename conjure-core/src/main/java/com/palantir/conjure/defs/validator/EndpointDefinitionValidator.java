@@ -18,6 +18,7 @@ package com.palantir.conjure.defs.validator;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.palantir.conjure.CaseConverter;
 import com.palantir.conjure.either.Either;
 import com.palantir.conjure.spec.ArgumentDefinition;
 import com.palantir.conjure.spec.ArgumentName;
@@ -38,6 +39,7 @@ import com.palantir.conjure.visitor.DealiasingTypeVisitor;
 import com.palantir.conjure.visitor.ParameterTypeVisitor;
 import com.palantir.conjure.visitor.TypeDefinitionVisitor;
 import com.palantir.conjure.visitor.TypeVisitor;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -377,19 +379,26 @@ public enum EndpointDefinitionValidator implements ConjureContextualValidator<En
                 } else {
                     throw new IllegalStateException("Validation for paramType does not exist: " + arg.getParamType());
                 }
-
                 if (paramType.accept(ParameterTypeVisitor.IS_QUERY)) {
                     ParameterId paramId = paramType.accept(ParameterTypeVisitor.QUERY).getParamId();
-                    Preconditions.checkState(pattern.matcher(paramId.get()).matches(),
-                            "Parameter ids with type %s must match pattern %s: %s",
-                            arg.getParamType(), pattern, paramId.get());
+                    checkParamId(pattern, paramId, arg.getParamType());
                 } else if (paramType.accept(ParameterTypeVisitor.IS_HEADER)) {
                     ParameterId paramId = paramType.accept(ParameterTypeVisitor.HEADER).getParamId();
-                    Preconditions.checkState(pattern.matcher(paramId.get()).matches(),
-                            "Parameter ids with type %s must match pattern %s: %s",
-                            arg.getParamType(), pattern, paramId.get());
+                    checkParamId(pattern, paramId, arg.getParamType());
                 }
             });
         }
+
+        private static void checkParamId(Pattern pattern, ParameterId paramId, ParameterType paramType) {
+            Preconditions.checkState(
+                    pattern.matcher(paramId.get()).matches()
+                            || CaseConverter.CAMEL_CASE_PATTERN.matcher(paramId.get()).matches()
+                            || CaseConverter.KEBAB_CASE_PATTERN.matcher(paramId.get()).matches()
+                            || CaseConverter.SNAKE_CASE_PATTERN.matcher(paramId.get()).matches(),
+                    "Parameter id \"%s\" with type %s must follow one of the following patterns: %s",
+                    paramId.get(), paramType, pattern);
+            Arrays.toString(CaseConverter.Case.values());
+        }
     }
+
 }

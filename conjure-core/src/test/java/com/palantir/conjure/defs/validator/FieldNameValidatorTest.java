@@ -26,7 +26,7 @@ public final class FieldNameValidatorTest {
 
     @Test
     public void testValidNames() {
-        FieldNameValidator.validate(FieldName.of("camel"));
+        FieldNameValidator.validate(FieldName.of("Camel"));
         FieldNameValidator.validate(FieldName.of("camelCase"));
         FieldNameValidator.validate(FieldName.of("camelCase1"));
         FieldNameValidator.validate(FieldName.of("camel1Case2"));
