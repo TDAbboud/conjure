@@ -19,7 +19,12 @@ package com.palantir.conjure.defs.validator;
 import com.google.common.base.Preconditions;
 import com.palantir.conjure.CaseConverter;
 import com.palantir.conjure.spec.FieldName;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +33,35 @@ public final class FieldNameValidator {
 
     private static final Logger log = LoggerFactory.getLogger(FieldName.class);
 
-    private FieldNameValidator() {}
+    private ConcurrentMap<String, Map<String, Instant>> heartbeats;
+
+    private FieldNameValidator() {
+        this.heartbeats = new ConcurrentHashMap<>();
+    }
+
+    private void updateHeartbeatsGetSet(String environmentId, String nodeId, Instant timestamp) {
+        Map<String, Instant> nodeHeartbeats = heartbeats.getOrDefault(environmentId, new HashMap<>());
+        nodeHeartbeats.put(nodeId, timestamp);
+        heartbeats.put(environmentId, nodeHeartbeats);
+    }
+
+    private void flushHeartbeats() {
+        for (String environmentId : heartbeats.keySet()) {
+            // fetch alta updates.
+            Map<String, Instant> altaUpdates = new HashMap<>();
+            for (Map.Entry<String, Instant> entry : heartbeats.remove(environmentId).entrySet()) {
+                Instant latestTime = altaUpdates.computeIfPresent(entry.getKey(), (nodeId, timestamp) -> {
+                    if (entry.getValue().isAfter(timestamp)) {
+                        return entry.getValue();
+                    }
+                    return timestamp;
+                });
+                altaUpdates.put(entry.getKey(), latestTime);
+            }
+            // write the alta updates back to the store.
+            log.info("testing");
+        }
+    }
 
     /**
      * Converts this {@link FieldName} to an upper camel case string (e.g. myVariant -> MyVariant).
